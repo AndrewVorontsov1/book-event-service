@@ -8,6 +8,7 @@ import org.apache.kafka.clients.admin.NewTopic
 
 import java.util.UUID
 import scala.concurrent.duration.DurationInt
+import scala.util.Random
 
 object Kafka {
   def kafkaAdminClientResource[F[_]: Async](
@@ -20,7 +21,7 @@ object Kafka {
     kafkaAdminClientResource[F]("localhost:9092").use { client =>
       client.listTopics.names
         .map { set =>
-          if (set.contains("book-event")) {
+          if (set.contains("book-events")) {
             ()
           } else {
             client.createTopic(new NewTopic("book-events", 1, 1.toShort))
@@ -45,12 +46,12 @@ object Kafka {
         year = bookId
       ).toByteArray
     )
-
+  val random = new Random()
   val produce: IO[Unit] = fs2.Stream
     .eval(createTopic[IO])
     .flatMap(_ =>
       awakeEvery[IO](1.seconds)
-        .evalMap(_ => IO.delay(UUID.randomUUID().toString))
+        .evalMap(_ => IO.delay(random.nextInt(10).toString))
     )
     .flatMap(bookId =>
       fs2.Stream
