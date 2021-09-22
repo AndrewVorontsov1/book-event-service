@@ -1,6 +1,6 @@
 import Library.BookEvent
 import cats.effect.kernel.Resource
-import cats.effect.{Async, ExitCode, IO, IOApp}
+import cats.effect.{Async, IO}
 import cats.implicits._
 import fs2.Stream.awakeEvery
 import fs2.kafka._
@@ -46,8 +46,12 @@ object Kafka {
       ).toByteArray
     )
 
-  val produce = awakeEvery[IO](1.seconds)
-    .evalMap(_ => IO.delay(UUID.randomUUID().toString))
+  val produce: IO[Unit] = fs2.Stream
+    .eval(createTopic[IO])
+    .flatMap(_ =>
+      awakeEvery[IO](1.seconds)
+        .evalMap(_ => IO.delay(UUID.randomUUID().toString))
+    )
     .flatMap(bookId =>
       fs2.Stream
         .eval(BookGenerator.genBookName)
