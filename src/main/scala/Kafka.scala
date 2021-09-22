@@ -32,22 +32,29 @@ object Kafka {
     ProducerSettings[IO, String, Array[Byte]]
       .withBootstrapServers("localhost:9092")
 
-  def record(bookId: String): ProducerRecord[String, Array[Byte]] =
+  def record(
+      bookId: String,
+      bookName: String
+  ): ProducerRecord[String, Array[Byte]] =
     ProducerRecord(
       topic = "book-events",
       key = bookId,
       value = BookEvent(
         id = bookId,
-        name = BookGenerator.getNameRun,
+        name = bookName,
         year = bookId
       ).toByteArray
     )
 
   val produce = awakeEvery[IO](1.seconds)
     .evalMap(_ => IO.delay(UUID.randomUUID().toString))
-    .map(commandId => ProducerRecords.one(record(commandId)))
+    .flatMap(bookId =>
+      fs2.Stream
+        .eval(BookGenerator.genBookName)
+        .map(name => ProducerRecords.one(record(bookId, name)))
+    )
     .flatTap { rec =>
-      KafkaProducer.stream(producerSettings).map(_.produce(rec))
+      KafkaProducer.stream(producerSettings).evalMap(_.produce(rec).flatten)
     }
     .compile
     .drain

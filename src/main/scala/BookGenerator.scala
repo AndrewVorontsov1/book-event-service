@@ -37,5 +37,4 @@ object BookGenerator {
   val genBookName: IO[String] = IO(
     adj(Random.nextInt(adj.size)) + " " + nom(Random.nextInt(nom.size))
   )
-  val getNameRun: String = genBookName.unsafeRunSync()
 }
